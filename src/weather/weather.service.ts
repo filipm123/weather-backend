@@ -12,8 +12,6 @@ export class WeatherService {
    */
   private validateCoordinates(latitude: number, longitude: number): void {
     if (
-      typeof latitude !== 'number' ||
-      typeof longitude !== 'number' ||
       latitude < -90 || 
       latitude > 90 || 
       longitude < -180 || 
