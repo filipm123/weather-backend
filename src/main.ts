@@ -5,7 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: 'https://weather-frontend-lnjh.onrender.com/', // Allow requests from your frontend's URL
+    origin: 'https://weather-frontend-lnjh.onrender.com', // Allow requests from your frontend's URL
     methods: 'GET,POST,PUT,DELETE', // Allow these HTTP methods
     allowedHeaders: 'Content-Type, Authorization', // Allow these headers
   });
