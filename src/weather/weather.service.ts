@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import axios from 'axios';
 
 @Injectable()
@@ -12,9 +16,9 @@ export class WeatherService {
    */
   private validateCoordinates(latitude: number, longitude: number): void {
     if (
-      latitude < -90 || 
-      latitude > 90 || 
-      longitude < -180 || 
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
       longitude > 180
     ) {
       throw new BadRequestException('Invalid latitude or longitude values.');
@@ -29,19 +33,23 @@ export class WeatherService {
         params: {
           latitude,
           longitude,
-          daily: 'weathercode,temperature_2m_min,temperature_2m_max,sunshine_duration',
+          daily:
+            'weathercode,temperature_2m_min,temperature_2m_max,sunshine_duration',
           timezone: 'auto',
         },
       });
 
       const data = response.data?.daily;
       if (!data || !data.time || !data.weathercode) {
-        throw new InternalServerErrorException('Incomplete or invalid data received from Open-Meteo API.');
+        throw new InternalServerErrorException(
+          'Incomplete or invalid data received from Open-Meteo API.',
+        );
       }
 
       const results = data.time.map((date: string, index: number) => {
         const exposureTime = data.sunshine_duration[index] / 60; // convert to hours
-        const generatedEnergy = this.photovoltaicPower * exposureTime * this.panelEfficiency;
+        const generatedEnergy =
+          this.photovoltaicPower * exposureTime * this.panelEfficiency;
 
         return {
           date,
@@ -55,7 +63,9 @@ export class WeatherService {
       return results;
     } catch (error) {
       if (error.response) {
-        throw new InternalServerErrorException(`Open-Meteo API Error: ${error.response.statusText}`);
+        throw new InternalServerErrorException(
+          `Open-Meteo API Error: ${error.response.statusText}`,
+        );
       }
       throw new InternalServerErrorException('Unable to fetch weather data.');
     }
@@ -69,35 +79,60 @@ export class WeatherService {
         params: {
           latitude,
           longitude,
-          daily: 'weathercode,temperature_2m_min,temperature_2m_max,sunshine_duration',
+          daily:
+            'weathercode,temperature_2m_min,temperature_2m_max,sunshine_duration',
+          hourly: 'surface_pressure', // Fetch hourly pressure data
           timezone: 'auto',
         },
       });
 
-      const data = response.data?.daily;
-      if (!data || !data.time || !data.weathercode) {
-        throw new InternalServerErrorException('Incomplete or invalid data received from Open-Meteo API.');
+      const data = response.data;
+      const dailyData = data?.daily;
+      const hourlyData = data?.hourly;
+
+      if (
+        !dailyData ||
+        !hourlyData ||
+        !dailyData.time ||
+        !dailyData.weathercode
+      ) {
+        throw new InternalServerErrorException(
+          'Incomplete or invalid data received from Open-Meteo API.',
+        );
       }
 
-      const exposureTimes = data.sunshine_duration.map((duration: number) => duration / 60); // convert to hours
-      const minTemps = data.temperature_2m_min;
-      const maxTemps = data.temperature_2m_max;
+      const exposureTimes = dailyData.sunshine_duration.map(
+        (duration: number) => duration / 60,
+      ); // convert to hours
+      const minTemps = dailyData.temperature_2m_min;
+      const maxTemps = dailyData.temperature_2m_max;
+      const pressures = hourlyData.surface_pressure;
 
+      const totalPressure = pressures.reduce(
+        (acc: number, pressure: number) => acc + pressure,
+        0,
+      );
+      const averagePressure = (totalPressure / pressures.length).toFixed(2);
 
-      const averageSunExposure = exposureTimes.reduce((a, b) => a + b, 0) / exposureTimes.length;
+      const averageSunExposure =
+        exposureTimes.reduce((a, b) => a + b, 0) / exposureTimes.length;
       const minTemp = Math.min(...minTemps);
       const maxTemp = Math.max(...maxTemps);
-      const rainyDays = data.weathercode.filter((code: number) => code >= 61 && code <= 80).length;
-
+      const rainyDays = dailyData.weathercode.filter(
+        (code: number) => code >= 61 && code <= 80,
+      ).length;
 
       return {
         averageSunExposure: averageSunExposure.toFixed(2),
+        averagePressure: averagePressure,
         extremeTemps: { min: minTemp, max: maxTemp },
-        summary: rainyDays > 3 ? 'Week with rainfall' : 'Week without rainfall',
+        summary: rainyDays > 3 ? 'Tydzień z opadami' : 'Tydzień bez opadów',
       };
     } catch (error) {
       if (error.response) {
-        throw new InternalServerErrorException(`Open-Meteo API Error: ${error.response.statusText}`);
+        throw new InternalServerErrorException(
+          `Open-Meteo API Error: ${error.response.statusText}`,
+        );
       }
       throw new InternalServerErrorException('Unable to fetch weather data.');
     }
